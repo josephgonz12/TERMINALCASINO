@@ -8,6 +8,7 @@ import re
 import casino.utils as utils
 
 from casino.types import GameContext
+from casino.stats import GameStats, display_stats
 from casino.utils import clear_screen, cprint, cinput, display_topbar
 from casino.accounts import Account
 
@@ -249,6 +250,7 @@ class Roulette:
         self.valid_numbers = []
 
         self.accounts = accounts
+        self.stats = [GameStats("Roulette (EU)", account.balance) for account in accounts]
 
         # Current round's bets
         self.bets = {}
@@ -564,6 +566,7 @@ class Roulette:
         cprint("Paying out all winners...")
         is_zero = (winning_number == "0")
         winning_int = None if is_zero else int(winning_number)
+        i = 0
         for account_id, bet in self.bets.items():
             entry = accounts_by_id.get(account_id)
             if entry is None:
@@ -581,13 +584,16 @@ class Roulette:
                 winning_int=winning_int,
                 is_zero=is_zero
             )
-
+            self.stats[i].rounds_played += 1
             if win_multiplier > 1:
                 win_amount = bet_amount * win_multiplier
                 account.deposit(win_amount)
+                self.stats[i].wins += 1
                 cprint(f"Player {player_number}: Won {win_amount} coins.")
             else:
+                self.stats[i].losses += 1
                 cprint(f"Player {player_number}: Lost {bet_amount} coins.")
+            i += 1
 
         cprint("Finished payout.")
 
@@ -672,6 +678,8 @@ def play_european_roulette(context: GameContext) -> None:
         if play_again in {"", "y", "yes"}:
             pass  # next round
         elif play_again in {"n", "no"}:
+            roulette.stats[0].ending_balance = context.account.balance
+            display_stats(roulette.stats[0])
             return
         else:
             play_again = prompt_with_error(
